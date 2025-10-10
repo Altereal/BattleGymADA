@@ -1,0 +1,51 @@
+# Файлы сборки Visual Studio
+[Bb]in/
+[Oo]bj/
+x64/
+x86/
+*.user
+*.suo
+*.aps
+*.pdb
+*.idb
+*.cache
+*.ilk
+*.log
+*.tlb
+*.tlh
+*.tmp
+*.bak
+*.VC.db
+*.opensdf
+*.sdf
+
+# Файлы системы
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Файлы пакетов NuGet
+packages/
+
+# Файлы резервных копий
+Backup/
+
+# Файлы тестов
+[Tt]est[Rr]esults/
+
+# Исключения - СОХРАНЯЕМ зависимости!
+!dependencies/include/
+!dependencies/include/**/*
+!dependencies/lib/
+!dependencies/lib/**/*
+!dependencies/bin/
+!dependencies/bin/**/*
+
+# Исключения - СОХРАНЯЕМ исходный код
+!src/
+!src/**/*
+
+# Исключения - СОХРАНЯЕМ ассеты
+!assets/
+!assets/**/*
