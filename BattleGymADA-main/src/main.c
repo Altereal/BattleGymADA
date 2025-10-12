@@ -353,8 +353,8 @@ void drawTank() {
     case 3: glRotatef(270.0f, 0, 0, 1); break;
     }
 
-    // Основной цвет - песочный
-    glColor3f(0.76f, 0.70f, 0.50f);
+    glColor3f(0.69f, 0.77f, 0.87f);  // Новый цвет игрока (#B0C4DE)
+
 
     // Корпус (основной прямоугольник)
     glBegin(GL_QUADS);
@@ -542,7 +542,7 @@ void updateGameTime() {
         gameTime = (currentTime - gameStartTime) / 1000;
 
         // Проверка победы
-        if (gameScore >= 10000) {
+        if (gameScore >= 2000) {
             gameState = GAME_WIN;
         }
     }
@@ -639,8 +639,8 @@ void drawEnemyTank(EnemyTank* tank) {
     case 3: glRotatef(-90.0f, 0, 0, 1); break; // право
     }
 
-    // Основной цвет - бронзовый
-    glColor3f(0.8f, 0.5f, 0.2f);
+    glColor3f(1.0f, 0.85f, 0.73f);  // Новый цвет врага (#FFDAB9)
+
 
     // Корпус
     glBegin(GL_QUADS);
@@ -1057,7 +1057,7 @@ void initGame() {
 
 void init() {
     // Устанавливаем цвет очистки
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.29f, 0.33f, 0.39f, 1.0f); // Новый серо-голубой фон (#4A5563)
     initGame();
 }
 //--------------------------------------------------------------------------
@@ -1077,7 +1077,7 @@ void init() {
 //--------------------------------------------------------------------------
 void drawField() {
     // Рисуем игровое поле (зеленый квадрат)
-    glColor3f(0.2f, 0.4f, 0.1f);  // Зеленый цвет поля
+    glColor3f(0.36f, 0.54f, 0.45f); // #5B8A72 — серо-зелёный металл
     glBegin(GL_QUADS);
     glVertex2f(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
     glVertex2f(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
@@ -1087,8 +1087,10 @@ void drawField() {
 }
 
 void drawWalls() {
-    // Устанавливаем оранжевый цвет для стен
-    glColor3f(0.9f, 0.5f, 0.1f);
+    glColor3f(0.44f, 0.50f, 0.56f); // Тёмно-серый (#708090)
+
+
+
 
     // Левая стена
     glBegin(GL_QUADS);
@@ -1138,9 +1140,9 @@ void drawGameObjects() {
             case OBJECT_BRICK: // Разрушаемая стена (кирпич)
                 // Определяем цвет по прочности
                 switch (gameGrid[y][x].durability) {
-                case 3: glColor3f(0.8f, 0.1f, 0.1f); break; // Темно-красный
-                case 2: glColor3f(0.9f, 0.3f, 0.3f); break; // Средне-красный
-                case 1: glColor3f(1.0f, 0.5f, 0.5f); break; // Светло-красный
+                case 3: glColor3f(0.80f, 0.44f, 0.44f); break; // основа
+                case 2: glColor3f(0.88f, 0.56f, 0.56f); break; // средне
+                case 1: glColor3f(0.96f, 0.68f, 0.68f); break; // почти всё
                 }
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
@@ -1153,9 +1155,9 @@ void drawGameObjects() {
             case OBJECT_BRICK_BASE: // Разрушаемая стена базы (кирпич)
                 // Определяем цвет по прочности
                 switch (gameGrid[y][x].durability) {
-                case 3: glColor3f(0.8f, 0.1f, 0.1f); break; // Темно-красный
-                case 2: glColor3f(0.9f, 0.3f, 0.3f); break; // Средне-красный
-                case 1: glColor3f(1.0f, 0.5f, 0.5f); break; // Светло-красный
+                case 3: glColor3f(0.80f, 0.44f, 0.44f); break; // основа
+                case 2: glColor3f(0.88f, 0.56f, 0.56f); break; // средне
+                case 1: glColor3f(0.96f, 0.68f, 0.68f); break; // почти всё
                 }
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
@@ -1166,7 +1168,7 @@ void drawGameObjects() {
                 break;
 
             case OBJECT_STEEL: // Неразрушаемая стена (сталь)
-                glColor3f(0.5f, 0.5f, 0.5f); // Серый
+                glColor3f(0.69f, 0.77f, 0.87f); // Цвет танка игрока (#B0C4DE)
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
                 glVertex2f(posX + CELL_SIZE, posY);
@@ -1176,7 +1178,8 @@ void drawGameObjects() {
                 break;
 
             case OBJECT_BASE: // База игрока
-                glColor3f(0.9f, 0.9f, 0.2f); // Желтый
+                glColor3f(0.80f, 0.67f, 0.49f); // #CDAA7D — бронзово-песочный
+
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
                 glVertex2f(posX + CELL_SIZE, posY);
@@ -1201,7 +1204,7 @@ void drawText(float x, float y, const char* text) {
 
 void drawButton(Button button) {
     // Рисуем прямоугольник кнопки
-    glColor3f(0.3f, 0.2f, 0.1f); // Оранжевый
+    glColor3f(0.44f, 0.50f, 0.56f); // Основной цвет кнопки (#708090)
     glBegin(GL_QUADS);
     glVertex2f(button.x, button.y);
     glVertex2f(button.x + button.width, button.y);
@@ -1210,7 +1213,7 @@ void drawButton(Button button) {
     glEnd();
 
     // Рамка кнопки
-    glColor3f(0.7f, 0.3f, 0.1f); // Темно-оранжевый
+    glColor3f(0.69f, 0.77f, 0.87f); // Обводка кнопки (#B0C4DE)
     glLineWidth(2.0f);
     glBegin(GL_LINE_LOOP);
     glVertex2f(button.x, button.y);
@@ -1240,7 +1243,7 @@ void drawInfoPanel() {
     float panelBottom = -PANEL_HEIGHT / 2;
     float panelTop = PANEL_HEIGHT / 2;
 
-    glColor3f(0.9f, 0.5f, 0.1f); // Оранжевый
+    glColor3f(0.29f, 0.33f, 0.39f); // Серо-голубой фон (#4A5563)
     glBegin(GL_QUADS);
     glVertex2f(panelLeft, panelBottom);
     glVertex2f(panelRight, panelBottom);
@@ -1277,8 +1280,7 @@ void drawInfoPanel() {
 }
 
 void drawMenu() {
-    // Очищаем экран оранжевым цветом
-    glClearColor(0.9f, 0.5f, 0.1f, 1.0f);
+    glClearColor(0.29f, 0.33f, 0.39f, 1.0f); // Новый серо-голубой фон (#4A5563)
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Рисуем заголовок
@@ -1291,31 +1293,29 @@ void drawMenu() {
 }
 
 void drawWinScreen() {
-    // Полупрозрачный черный фон
-    glColor4f(0.0f, 0.0f, 0.0f, 0.7f);
+    glColor3f(0.35f, 0.40f, 0.46f); // #5A6675 примерно
     glBegin(GL_QUADS);
-    glVertex2f(-10.0f, -10.0f);
-    glVertex2f(10.0f, -10.0f);
-    glVertex2f(10.0f, 10.0f);
-    glVertex2f(-10.0f, 10.0f);
+    glVertex2f(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
+    glVertex2f(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
+    glVertex2f(FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
+    glVertex2f(-FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
     glEnd();
 
     // Текст победы
-    glColor3f(0.0f, 1.0f, 0.0f); // Зеленый
+    glColor3f(0.0f, 1.0f, 0.0f);
     drawText(-4.0f, 2.0f, "You win!");
 
     // Очки
     char scoreText[30];
     sprintf(scoreText, "Your score: %d", gameScore);
-    drawText(-4.0f, 0.0f, scoreText);
+    drawText(-4.0f, 0.5f, scoreText);
 
-    // Кнопка OK
     drawButton(okButton);
 }
 
 void drawLoseScreen() {
-    // Полупрозрачный черный фон
-    glColor4f(0.0f, 0.0f, 0.0f, 0.7f);
+    glColor3f(0.35f, 0.40f, 0.46f); // фон панели в цвет фона
+
     glBegin(GL_QUADS);
     glVertex2f(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
     glVertex2f(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
@@ -1494,6 +1494,17 @@ void mouse(int button, int state, int x, int y) {
                     exit(0);
                 }
             }
+
+            else if (gameState == GAME_WIN) {
+                // Нажатие на кнопку OK
+                if (worldX >= okButton.x && worldX <= okButton.x + okButton.width &&
+                    worldY >= okButton.y && worldY <= okButton.y + okButton.height) {
+
+                    gameState = GAME_MENU;
+                    return;
+                }
+            }
+
             // Экран проигрыша: две кнопки
             else if (gameState == GAME_LOSE) {
                 // перезапуск игры
