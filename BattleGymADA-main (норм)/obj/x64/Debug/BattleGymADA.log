@@ -1,5 +1,5 @@
 ﻿  main.c
-C:\Users\Kto-to\Desktop\Политех\курсачи\BattleGymADA-main (норм)\src\main.c(1707,21): warning C4113: "void (__cdecl *)()" отличается в списках параметров от "void (__cdecl *)(void)"
+C:\Users\Kto-to\Desktop\Политех\курсачи\BattleGymADA-main (норм)\src\main.c(1728,21): warning C4113: "void (__cdecl *)()" отличается в списках параметров от "void (__cdecl *)(void)"
   BattleGymADA.vcxproj -> C:\Users\Kto-to\Desktop\Политех\курсачи\BattleGymADA-main (норм)\bin\x64\Debug\BattleGymADA.exe
   C:\Users\Kto-to\Desktop\Политех\курсачи\BattleGymADA-main (норм)\dependencies\bin\freeglut.dll
   Скопировано файлов: 1.

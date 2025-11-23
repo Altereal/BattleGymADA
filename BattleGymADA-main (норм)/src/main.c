@@ -13,6 +13,46 @@
 const int WINDOW_WIDTH = 480 + 160; // 480 (поле) + 160 (панель)
 const int WINDOW_HEIGHT = 480;
 
+// Позиция игрока в мировых координатах при старте
+#define PLAYER_START_X   -3.0f
+#define PLAYER_START_Y   -7.0f
+
+// Скорость перемещения танка игрока (прирост прогресса за кадр)
+#define PLAYER_MOVE_SPEED  0.020f
+
+// Скорость перемещения танков врагов (прирост прогресса за кадр)
+#define ENEMY_MOVE_SPEED   0.03f
+
+// Параметры стрельбы игрока и врагов
+#define BULLET_BASE_SPEED         0.4f   // базовая скорость пули (единиц в секунду)
+#define BULLET_STEP_FACTOR        0.05f  // коэффициент, на который умножается скорость для перемещения за кадр
+#define BULLET_OFFSET             0.6f   // смещение пули от центра танка при выстреле
+#define BULLET_HIT_RADIUS         0.65f  // порог столкновения пули с танком
+#define ENEMY_SHOT_INTERVAL_MS    2000   // интервал между выстрелами врага в миллисекундах
+
+// Количество очков, необходимых для победы и начисляемые очки
+#define POINTS_TO_WIN             2000
+#define POINTS_PER_ENEMY          50
+#define POINTS_PER_BRICK          10
+
+// Параметры возрождения врагов
+#define RESPAWN_DELAY_DECREMENT_MS 500    // уменьшение задержки респавна после каждого убийства врага
+#define RESPAWN_DELAY_MIN_MS      1000   // минимальная задержка респавна врага
+#define ENEMY_SPAWN_TIME_INTERVAL_SEC 60 // каждые секунд увеличиваем количество спавнящихся врагов
+
+// Параметры движения врагов
+#define ENEMY_MOVE_DELAY_MIN_MS   500    // минимальная задержка между ходами врага
+#define ENEMY_MOVE_DELAY_RANGE_MS 500    // диапазон случайной задержки
+
+// Вероятность появления врага-охотника (делитель)
+#define HUNTER_TYPE_PROBABILITY_DIVISOR 4
+
+// Игровые параметры
+#define PLAYER_INITIAL_HP 5
+
+// Интервал обновления FPS в миллисекундах
+#define FPS_UPDATE_INTERVAL_MS    1000
+
 // Размеры игрового поля в мировых координатах
 const float FIELD_WIDTH = 18.0f;
 const float FIELD_HEIGHT = 18.0f;
@@ -109,9 +149,9 @@ typedef struct {
     bool isMoving;
     float moveProgress;
     int targetX, targetY;  // Целевая позиция в клетках
-  
-   //удалила 3 поля
-    
+
+    //удалила 3 поля
+
     int moveDelay;           // Задержка между движениями
     int lastMoveTime;        // Время последнего движения
     int state; // 0: к линии атаки, 1: на линии атаки
@@ -142,7 +182,6 @@ float spawnPoints[5][2] = {
 // Структура для узла поиска пути
 typedef struct {
     int x, y;
-    int parentX, parentY;
 } PathNode;
 //------------
 
@@ -159,7 +198,7 @@ typedef enum {
 GameState gameState = GAME_MENU;
 
 // Игровые параметры
-int playerHP = 5;
+int playerHP = PLAYER_INITIAL_HP;
 int gameScore = 0;
 int gameTime = 0; // В секундах
 int fps = 0;                 // Текущее FPS, обновляем раз в ~секунду
@@ -183,8 +222,6 @@ Button restartButton;  // новая
 Button gameOverButton; // новая
 
 // Флаги для определения, нажата ли кнопка
-int mouseX, mouseY;
-bool mouseLeftDown = false;
 //-------------------------------------------------------------------------
 
 
@@ -318,8 +355,8 @@ void initGameGrid() {
 // Блок танка игрока
 //--------------------------------------------------------------------------
 void initTank() {
-    playerTank.x = -3.0f;       // Стартовая позиция X
-    playerTank.y = -7.0f;       // Стартовая позиция Y
+    playerTank.x = PLAYER_START_X;       // Стартовая позиция X
+    playerTank.y = PLAYER_START_Y;       // Стартовая позиция Y
     playerTank.direction = 0;  // Смотрит вверх
     playerTank.isMoving = false;
     playerTank.moveProgress = 0.0f;
@@ -353,7 +390,7 @@ bool canMoveTo(int gridX, int gridY) {
 
 void updateTank() {
     if (playerTank.isMoving) {
-        playerTank.moveProgress += 0.020f;  // Скорость движения
+        playerTank.moveProgress += PLAYER_MOVE_SPEED;  // Скорость движения
 
         if (playerTank.moveProgress >= 1.0f) {
             playerTank.isMoving = false;
@@ -435,10 +472,6 @@ int queueStart = 0;
 int queueEnd = 0;
 
 // Проверка, является ли точка линией атаки
-bool isAttackLine(int x, int y) {
-    // В новой логике линия атакинужна только для поворота танков на базе.
-    return (y == 1) || (x == 16) || (x == 17);
-}
 
 // в новой логике использем не всю линию для атаки, а несколько значений (а конкретно два)
 bool isAttackPos(int x, int y) {
@@ -461,7 +494,7 @@ void buildDistanceFieldToBase(void) {
         for (int x = 0; x < GRID_WIDTH; ++x) {
             if (isAttackPos(x, y) && canMoveTo(x, y)) {
                 distToBase[y][x] = 0;
-                pathQueue[queueEnd++] = (PathNode){ x, y, -1, -1 };
+                pathQueue[queueEnd++] = (PathNode){ x, y };
             }
         }
     }
@@ -484,7 +517,7 @@ void buildDistanceFieldToBase(void) {
 
             if (distToBase[ny][nx] > curDist + 1) {
                 distToBase[ny][nx] = curDist + 1;
-                pathQueue[queueEnd++] = (PathNode){ nx, ny, -1, -1 };
+                pathQueue[queueEnd++] = (PathNode){ nx, ny };
             }
         }
     }
@@ -510,7 +543,7 @@ void buildDistanceFieldToPlayer(void) {
         return;
 
     distToPlayer[startY][startX] = 0;
-    pathQueue[queueEnd++] = (PathNode){ startX, startY, -1, -1 };
+    pathQueue[queueEnd++] = (PathNode){ startX, startY };
 
     static const int dx[4] = { 0, 0, -1, 1 };
     static const int dy[4] = { 1, -1, 0, 0 };
@@ -530,7 +563,7 @@ void buildDistanceFieldToPlayer(void) {
 
             if (distToPlayer[ny][nx] > curDist + 1) {
                 distToPlayer[ny][nx] = curDist + 1;
-                pathQueue[queueEnd++] = (PathNode){ nx, ny, -1, -1 };
+                pathQueue[queueEnd++] = (PathNode){ nx, ny };
             }
         }
     }
@@ -550,7 +583,7 @@ void updateGameTime() {
         gameTime = (currentTime - gameStartTime) / 1000;
 
         // Проверка победы
-        if (gameScore >= 2000) {
+        if (gameScore >= POINTS_TO_WIN) {
             gameState = GAME_WIN;
         }
     }
@@ -585,8 +618,8 @@ void respawnEnemies() {
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
     int gameDuration = (currentTime - gameStartTime) / 1000;
 
-    enemiesSpawnCount = 1 + gameDuration / 60;
-    if (enemiesSpawnCount > 5) enemiesSpawnCount = 5;
+    enemiesSpawnCount = 1 + gameDuration / ENEMY_SPAWN_TIME_INTERVAL_SEC;
+    if (enemiesSpawnCount > MAX_ENEMIES) enemiesSpawnCount = MAX_ENEMIES;
 
     if (currentTime - lastRespawnTime < respawnDelay) return;
 
@@ -605,12 +638,12 @@ void respawnEnemies() {
             enemies[i].moveProgress = 0.0f;
             enemies[i].targetX = (int)roundf((enemies[i].x + 8.0f) / CELL_SIZE);
             enemies[i].targetY = (int)roundf((enemies[i].y + 8.0f) / CELL_SIZE);
-            // Случайная задержка между движениями (500–1000 мс)
-            enemies[i].moveDelay = 500 + rand() % 500;
+            // Случайная задержка между движениями
+            enemies[i].moveDelay = ENEMY_MOVE_DELAY_MIN_MS + rand() % ENEMY_MOVE_DELAY_RANGE_MS;
             enemies[i].lastMoveTime = currentTime;
 
-            // 25% шанс, что враг будет снайпить нас в полёте
-            if (rand() % 4 == 0) {
+            // С заданной вероятностью назначаем врага охотником
+            if (rand() % HUNTER_TYPE_PROBABILITY_DIVISOR == 0) {
                 enemies[i].type = ENEMY_HUNTER;
             }
             else {
@@ -733,10 +766,10 @@ void createBullet() {
 
             // Корректируем позицию в зависимости от направления
             switch (playerTank.direction) {
-            case 0: bullets[i].y += 0.6f; break; // Вверх
-            case 1: bullets[i].x += 0.6f; break; // Влево
-            case 2: bullets[i].y -= 0.6f; break; // Вниз
-            case 3: bullets[i].x -= 0.6f; break; // Вправо
+            case 0: bullets[i].y += BULLET_OFFSET; break; // Вверх
+            case 1: bullets[i].x += BULLET_OFFSET; break; // Влево
+            case 2: bullets[i].y -= BULLET_OFFSET; break; // Вниз
+            case 3: bullets[i].x -= BULLET_OFFSET; break; // Вправо
             }
 
             lastShotTime = currentTime;
@@ -756,10 +789,10 @@ void createEnemyBullet(int enemyIndex) {
 
             // Корректировка позиции
             switch (enemies[enemyIndex].direction) {
-            case 0: bullets[i].y += 0.6f; break;
-            case 1: bullets[i].x -= 0.6f; break;
-            case 2: bullets[i].y -= 0.6f; break;
-            case 3: bullets[i].x += 0.6f; break;
+            case 0: bullets[i].y += BULLET_OFFSET; break;
+            case 1: bullets[i].x -= BULLET_OFFSET; break;
+            case 2: bullets[i].y -= BULLET_OFFSET; break;
+            case 3: bullets[i].x += BULLET_OFFSET; break;
             }
             break;
         }
@@ -767,7 +800,8 @@ void createEnemyBullet(int enemyIndex) {
 }
 
 void updateBullets() {
-    const float BULLET_SPEED = 0.4f;
+    // Используем глобальные константы для скорости пули
+    const float BULLET_SPEED = BULLET_BASE_SPEED;
 
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (!bullets[i].active) continue;
@@ -797,16 +831,16 @@ void updateBullets() {
                     float dy = fabsf(bullets[i].y - enemies[j].y);
 
                     // Размер танка: 1.0x1.0, размер пули: 0.3x0.3
-                    if (dx < 0.65f && dy < 0.65f) {
+                    if (dx < BULLET_HIT_RADIUS && dy < BULLET_HIT_RADIUS) {
                         bullets[i].active = false;
                         enemies[j].active = false;
 
-                        // Начисление 50 очков за врага
-                        gameScore += 50;
+                        // Начисление очков за уничтоженного врага
+                        gameScore += POINTS_PER_ENEMY;
 
-                        // Уменьшаем время респавна
-                        respawnDelay -= 500;
-                        if (respawnDelay < 1000) respawnDelay = 1000;
+                        // Уменьшаем время респавна согласно настройкам
+                        respawnDelay -= RESPAWN_DELAY_DECREMENT_MS;
+                        if (respawnDelay < RESPAWN_DELAY_MIN_MS) respawnDelay = RESPAWN_DELAY_MIN_MS;
                         break;
                     }
                 }
@@ -815,10 +849,10 @@ void updateBullets() {
 
         // Двигаем пулю в зависимости от направления
         switch (bullets[i].direction) {
-        case 0: bullets[i].y += BULLET_SPEED * 0.05f; break;
-        case 1: bullets[i].x -= BULLET_SPEED * 0.05f; break;
-        case 2: bullets[i].y -= BULLET_SPEED * 0.05f; break;
-        case 3: bullets[i].x += BULLET_SPEED * 0.05f; break;
+        case 0: bullets[i].y += BULLET_SPEED * BULLET_STEP_FACTOR; break;
+        case 1: bullets[i].x -= BULLET_SPEED * BULLET_STEP_FACTOR; break;
+        case 2: bullets[i].y -= BULLET_SPEED * BULLET_STEP_FACTOR; break;
+        case 3: bullets[i].x += BULLET_SPEED * BULLET_STEP_FACTOR; break;
         }
 
         // Проверка выхода за границы поля
@@ -842,9 +876,9 @@ void updateBullets() {
             }
 
             if (!obj->passable) {
-                // Начисляем очки за разрушение кирпича
-                if ((obj->type == OBJECT_BRICK || obj->type == OBJECT_BRICK_BASE) && obj->durability > 0) {
-                    gameScore += 10;
+                // Очки за кирпич только если стреляет игрок
+                if (!bullets[i].isEnemy && (obj->type == OBJECT_BRICK || obj->type == OBJECT_BRICK_BASE) && obj->durability > 0) {
+                    gameScore += POINTS_PER_BRICK;
                 }
 
                 // Для разрушаемых объектов уменьшаем прочность
@@ -945,15 +979,15 @@ void updateEnemies() {
         }
 
 
-        // Стрельба раз в 2 секунды
-        if (currentTime - e->lastShotTime > 2000) {
+        // Стрельба согласно заданному интервалу
+        if (currentTime - e->lastShotTime > ENEMY_SHOT_INTERVAL_MS) {
             createEnemyBullet(i);
             e->lastShotTime = currentTime;
         }
 
         // Движемся к целевой клетке
         if (e->isMoving) {
-            e->moveProgress += 0.03f;
+            e->moveProgress += ENEMY_MOVE_SPEED;
 
             if (e->moveProgress >= 1.0f) {
                 e->isMoving = false;
@@ -1137,7 +1171,7 @@ void initGame() {
 
 
     // Сброс игровых параметров
-    playerHP = 5;
+    playerHP = PLAYER_INITIAL_HP;
     gameScore = 0;
     gameTime = 0;
     gameState = GAME_MENU;
@@ -1248,20 +1282,20 @@ void drawGameObjects() {
             float posY = startY + y * CELL_SIZE;
 
             switch (gameGrid[y][x].type) {
-                case OBJECT_BRICK:          // Разрушаемая стена (кирпич)
-                case OBJECT_BRICK_BASE:    // Разрушаемая стена базы (кирпич)
-                    drawBrickCell(posX, posY, gameGrid[y][x].durability);
-                    break;
-                
-                case OBJECT_STEEL: // Неразрушаемая стена (сталь)
-                    glColor3f(0.69f, 0.77f, 0.87f); // Цвет танка игрока (#B0C4DE)
-                    glBegin(GL_QUADS);
-                    glVertex2f(posX, posY);
-                    glVertex2f(posX + CELL_SIZE, posY);
-                    glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
-                    glVertex2f(posX, posY + CELL_SIZE);
-                    glEnd();
-                    break;
+            case OBJECT_BRICK:          // Разрушаемая стена (кирпич)
+            case OBJECT_BRICK_BASE:    // Разрушаемая стена базы (кирпич)
+                drawBrickCell(posX, posY, gameGrid[y][x].durability);
+                break;
+
+            case OBJECT_STEEL: // Неразрушаемая стена (сталь)
+                glColor3f(0.69f, 0.77f, 0.87f); // Цвет танка игрока (#B0C4DE)
+                glBegin(GL_QUADS);
+                glVertex2f(posX, posY);
+                glVertex2f(posX + CELL_SIZE, posY);
+                glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
+                glVertex2f(posX, posY + CELL_SIZE);
+                glEnd();
+                break;
 
             case OBJECT_BASE: // База игрока
                 glColor3f(0.80f, 0.67f, 0.49f); // #CDAA7D — бронзово-песочный
@@ -1452,8 +1486,8 @@ void display() {
     if (fpsLastTimeMs == 0) fpsLastTimeMs = nowMs;      // инициализация при первом кадре
     fpsFrameCount++;
     int delta = nowMs - fpsLastTimeMs;
-    if (delta >= 1000) {                                 // раз в ~секунду
-        fps = (int)((fpsFrameCount * 1000.0f) / (float)delta);
+    if (delta >= FPS_UPDATE_INTERVAL_MS) {                                 // раз в ~FPS_UPDATE_INTERVAL_MS мс
+        fps = (int)((fpsFrameCount * FPS_UPDATE_INTERVAL_MS) / (float)delta);
         fpsFrameCount = 0;
         fpsLastTimeMs = nowMs;
     }
@@ -1537,13 +1571,13 @@ void display() {
     }
 
 
-        // Обмен буферов
-        glutSwapBuffers();
-        glutPostRedisplay(); // Непрерывная перерисовка
-    
+    // Обмен буферов
+    glutSwapBuffers();
+    glutPostRedisplay(); // Непрерывная перерисовка
+
 }
 
-void reshape (int width, int height) {
+void reshape(int width, int height) {
     glViewport(0, 0, width, height);
 }
 //--------------------------------------------------------------------------
@@ -1560,75 +1594,64 @@ void reshape (int width, int height) {
 // Всё, что касается клавы и мыши
 //--------------------------------------------------------------------------
 void mouse(int button, int state, int x, int y) {
-    // Преобразование координат мыши в мировые координаты
-    mouseX = x;
-    mouseY = y;
+    // Обрабатываем только нажатие левой кнопки мыши
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        // Преобразуем координаты экрана в мировые
+        GLint viewport[4];
+        GLdouble modelview[16], projection[16];
+        GLfloat winX, winY, winZ;
+        GLdouble posX, posY, posZ;
 
-    if (button == GLUT_LEFT_BUTTON) {
-        mouseLeftDown = (state == GLUT_DOWN);
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+        glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
-        if (mouseLeftDown) {
-            // Преобразуем координаты экрана в мировые
-            GLint viewport[4];
-            GLdouble modelview[16], projection[16];
-            GLfloat winX, winY, winZ;
-            GLdouble posX, posY, posZ;
+        winX = (float)x;
+        winY = (float)viewport[3] - (float)y;
+        glReadPixels(x, (int)winY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
 
-            glGetIntegerv(GL_VIEWPORT, viewport);
-            glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
-            glGetDoublev(GL_PROJECTION_MATRIX, projection);
+        gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
 
-            winX = (float)x;
-            winY = (float)viewport[3] - (float)y;
-            glReadPixels(x, (int)winY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
+        float worldX = (float)posX;
+        float worldY = (float)posY;
 
-            gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
-
-            float worldX = (float)posX;
-            float worldY = (float)posY;
-
-            // Проверка нажатия на кнопки
-            if (gameState == GAME_MENU) {
-                // Кнопка "Начать игру"
-                if (worldX >= startButton.x && worldX <= startButton.x + startButton.width &&
-                    worldY >= startButton.y && worldY <= startButton.y + startButton.height) {
-                    gameStartTime = glutGet(GLUT_ELAPSED_TIME);
-                    gameState = GAME_PLAYING;
-                }
-                // Кнопка "Выход"
-                else if (worldX >= exitButton.x && worldX <= exitButton.x + exitButton.width &&
-                    worldY >= exitButton.y && worldY <= exitButton.y + exitButton.height) {
-                    exit(0);
-                }
+        // Проверка нажатия на кнопки в зависимости от текущего состояния игры
+        if (gameState == GAME_MENU) {
+            // Кнопка "Начать игру"
+            if (worldX >= startButton.x && worldX <= startButton.x + startButton.width &&
+                worldY >= startButton.y && worldY <= startButton.y + startButton.height) {
+                gameStartTime = glutGet(GLUT_ELAPSED_TIME);
+                gameState = GAME_PLAYING;
             }
-
-            else if (gameState == GAME_WIN) {
-                // Нажатие на кнопку OK
-                if (worldX >= okButton.x && worldX <= okButton.x + okButton.width &&
-                    worldY >= okButton.y && worldY <= okButton.y + okButton.height) {
-
-                    gameState = GAME_MENU;
-                    return;
-                }
+            // Кнопка "Выход"
+            else if (worldX >= exitButton.x && worldX <= exitButton.x + exitButton.width &&
+                worldY >= exitButton.y && worldY <= exitButton.y + exitButton.height) {
+                exit(0);
             }
-
-            // Экран проигрыша: две кнопки
-            else if (gameState == GAME_LOSE) {
-                // перезапуск игры
-                if (worldX >= restartButton.x && worldX <= restartButton.x + restartButton.width &&
-                    worldY >= restartButton.y && worldY <= restartButton.y + restartButton.height) {
-                    initGame();                 // сбрасываем состояние
-                    gameState = GAME_PLAYING;   // сразу возвращаемся в игру
-                    return;
-                }
-                // GAME OVER 
-                if (worldX >= gameOverButton.x && worldX <= gameOverButton.x + gameOverButton.width &&
-                    worldY >= gameOverButton.y && worldY <= gameOverButton.y + gameOverButton.height) {
-                    gameState = GAME_MENU;      // показываем экран меню
-                    return;
-                }
+        }
+        else if (gameState == GAME_WIN) {
+            // Нажатие на кнопку OK
+            if (worldX >= okButton.x && worldX <= okButton.x + okButton.width &&
+                worldY >= okButton.y && worldY <= okButton.y + okButton.height) {
+                gameState = GAME_MENU;
+                return;
             }
-
+        }
+        // Экран проигрыша: две кнопки
+        else if (gameState == GAME_LOSE) {
+            // Перезапуск игры
+            if (worldX >= restartButton.x && worldX <= restartButton.x + restartButton.width &&
+                worldY >= restartButton.y && worldY <= restartButton.y + restartButton.height) {
+                initGame();                 // сбрасываем состояние
+                gameState = GAME_PLAYING;   // сразу возвращаемся в игру
+                return;
+            }
+            // GAME OVER
+            if (worldX >= gameOverButton.x && worldX <= gameOverButton.x + gameOverButton.width &&
+                worldY >= gameOverButton.y && worldY <= gameOverButton.y + gameOverButton.height) {
+                gameState = GAME_MENU;      // показываем экран меню
+                return;
+            }
         }
     }
 }
