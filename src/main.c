@@ -4,106 +4,128 @@
 #include <stdbool.h>
 #include <math.h>
 
-// Размеры окна
-const int WINDOW_WIDTH = 480 + 160; // 480 (поле) + 160 (панель)
+//-------------------
+// РРіСЂРѕРІС‹Рµ РєРѕРЅСЃС‚Р°РЅС‚С‹
+//-------------------
+
+// РџР°СЂР°РјРµС‚СЂС‹ РёРіСЂРѕРєР°
+#define PLAYER_INITIAL_HP       5   // СЃС‚Р°СЂС‚РѕРІРѕРµ HP РёРіСЂРѕРєР°
+
+// РћС‡РєРё
+#define SCORE_ENEMY_KILL        50      // РѕС‡РєРё Р·Р° СѓРЅРёС‡С‚РѕР¶РµРЅРёРµ С‚Р°РЅРєР° РІСЂР°РіР°
+#define SCORE_BRICK_HIT         10      // РѕС‡РєРё Р·Р° РїРѕРїР°РґР°РЅРёРµ РїРѕ РєРёСЂРїРёС‡РЅРѕР№ СЃС‚РµРЅРµ
+#define SCORE_WIN_THRESHOLD     10000   // РїРѕСЂРѕРі РїРѕР±РµРґС‹ РїРѕ РѕС‡РєР°Рј
+
+// РџР°СЂР°РјРµС‚СЂС‹ СЂРµСЃРїР°РІРЅР° РІСЂР°РіРѕРІ (РјСЃ)
+#define ENEMY_RESPAWN_INITIAL   10000   // РЅР°С‡Р°Р»СЊРЅР°СЏ Р·Р°РґРµСЂР¶РєР° СЂРµСЃРїР°РІРЅР°
+#define ENEMY_RESPAWN_STEP      500     // СѓРјРµРЅСЊС€РµРЅРёРµ Р·Р°РґРµСЂР¶РєРё Р·Р° СѓР±РёС‚РѕРіРѕ РІСЂР°РіР°
+#define ENEMY_RESPAWN_MIN       1000    // РјРёРЅРёРјР°Р»СЊРЅР°СЏ Р·Р°РґРµСЂР¶РєР° СЂРµСЃРїР°РІРЅР°
+
+// РЎРєРѕСЂРѕСЃС‚Рё
+#define PLAYER_MOVE_STEP        0.05f   // С€Р°Рі РёРЅС‚РµСЂРїРѕР»СЏС†РёРё РґРІРёР¶РµРЅРёСЏ С‚Р°РЅРєР°
+#define BULLET_SPEED            1.0f    // Р±Р°Р·РѕРІР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ РїСѓР»Рё
+
+
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+const int WINDOW_WIDTH = 480 + 160; // 480 (пїЅпїЅпїЅпїЅ) + 160 (пїЅпїЅпїЅпїЅпїЅпїЅ)
 const int WINDOW_HEIGHT = 480;
 
-// Размеры игрового поля в мировых координатах
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 const float FIELD_WIDTH = 18.0f;
 const float FIELD_HEIGHT = 18.0f;
 
-// Размеры информационной панели
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 const float PANEL_WIDTH = 6.0f;
 const float PANEL_HEIGHT = 18.0f;
 
-// Толщина стен
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 const float WALL_THICKNESS = 0.5f;
 
-// Размер ячейки игрового поля
+// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 const float CELL_SIZE = 0.5f;
 const int GRID_WIDTH = 36;   // 18 / 0.5 = 36
 const int GRID_HEIGHT = 36;  // 18 / 0.5 = 36
 
 //------------
-// Типы игровых объектов
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 typedef enum {
-    OBJECT_EMPTY = 0,     // Пустое пространство
-    OBJECT_BRICK = 1,     // Разрушаемая стена (кирпич)
-    OBJECT_STEEL = 2,     // Неразрушаемая стена (сталь)
-    OBJECT_WATER = 3,     // Вода
-    OBJECT_BASE = 4,      // База игрока
-    OBJECT_BRICK_BASE = 5     // Кирпичи у базы игрока
+    OBJECT_EMPTY = 0,     // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    OBJECT_BRICK = 1,     // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ)
+    OBJECT_STEEL = 2,     // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ)
+    OBJECT_WATER = 3,     // пїЅпїЅпїЅпїЅ
+    OBJECT_BASE = 4,      // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    OBJECT_BRICK_BASE = 5     // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 } ObjectType;
 
-// Структура игрового объекта
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 typedef struct {
-    ObjectType type;      // Тип объекта
-    int durability;       // Прочность (0-3)
-    bool passable;        // Можно ли пройти
-    bool destructible;    // Можно ли разрушить
+    ObjectType type;      // пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    int durability;       // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0-3)
+    bool passable;        // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    bool destructible;    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 } GameObject;
 
-// Игровая сетка (матрица объектов)
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 GameObject gameGrid[36][36];
 //------------
 
 
 //------------
 typedef struct {
-    float x, y;           // Позиция центра танка
-    int direction;         // 0: вверх, 1: вправо, 2: вниз, 3: влево
-    bool isMoving;         // Флаг движения
-    float moveProgress;    // Прогресс движения (0.0-1.0)
-    int targetX, targetY;  // Целевая позиция в клетках
+    float x, y;           // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+    int direction;         // 0: пїЅпїЅпїЅпїЅпїЅ, 1: пїЅпїЅпїЅпїЅпїЅпїЅ, 2: пїЅпїЅпїЅпїЅ, 3: пїЅпїЅпїЅпїЅпїЅ
+    bool isMoving;         // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    float moveProgress;    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0.0-1.0)
+    int targetX, targetY;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 } Tank;
 
-Tank playerTank;  // Танк игрока
+Tank playerTank;  // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 //------------
 
 
 //------------
 typedef struct {
-    float x, y;           // Позиция центра пули
-    int direction;         // Направление (0-3 как у танка)
-    bool active; // Активна ли пуля
-    bool isEnemy; // Вражеская ли
+    float x, y;           // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+    int direction;         // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0-3 пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ)
+    bool active; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ
+    bool isEnemy; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ
 } Bullet;
 
-#define MAX_BULLETS 50     // Максимальное количество пуль
-Bullet bullets[MAX_BULLETS]; // Массив пуль
-int lastShotTime = 0;       // Время последнего выстрела (мс)
-const int SHOT_DELAY = 100; // Задержка между выстрелами (1 секунда)
+#define MAX_BULLETS 50     // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+Bullet bullets[MAX_BULLETS]; // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+int lastShotTime = 0;       // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ)
+const int SHOT_DELAY = 100; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (1 пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 //------------
 
 
 //------------
 typedef struct {
-    float x, y;           // Позиция центра
-    int direction;         // Направление (0-3)
-    bool active;           // Активен ли танк
-    int lastShotTime;      // Время последнего выстрела
-    // Поля для управления движением
+    float x, y;           // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    int direction;         // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0-3)
+    bool active;           // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ
+    int lastShotTime;      // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     bool isMoving;
     float moveProgress;
-    int targetX, targetY;  // Целевая позиция в клетках
+    int targetX, targetY;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     int attackLineType;      // 0: y=2, 1: x=17, 2: x=18
-    int targetLineX, targetLineY; // Конкретная точка на линии атаки
-    int pathStep;            // Текущий шаг в пути
-    int pathLength;          // Длина пути
-    int* path;               // Массив точек пути (x0,y0,x1,y1,...)
-    int moveDelay;           // Задержка между движениями
-    int lastMoveTime;        // Время последнего движения
-    int state; // 0: к линии атаки, 1: на линии атаки
+    int targetLineX, targetLineY; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+    int pathStep;            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ
+    int pathLength;          // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+    int* path;               // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (x0,y0,x1,y1,...)
+    int moveDelay;           // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    int lastMoveTime;        // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    int state; // 0: пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, 1: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 } EnemyTank;
 
 #define MAX_ENEMIES 5
 EnemyTank enemies[MAX_ENEMIES];
-int respawnDelay = 10000;  // Начальная задержка респавна (10 сек)
-int lastRespawnTime = 0;   // Время последнего респавна
-int enemiesSpawnCount = 1; // Количество врагов за респавн
-int gameStartTime = 0;     // Время начала игры
+int respawnDelay = ENEMY_RESPAWN_INITIAL;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (10 пїЅпїЅпїЅ)
+int lastRespawnTime = 0;   // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+int enemiesSpawnCount = 1; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+int gameStartTime = 0;     // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 
-// Позиции спавна (в мировых координатах)
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 float spawnPoints[5][2] = {
     {-7.5f, -4.0f},   // (2.5;9.5)
     {-7.5f, 7.0f},    // (2.5;31.5)
@@ -115,7 +137,7 @@ float spawnPoints[5][2] = {
 
 
 //------------
-// Структура для узла поиска пути
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 typedef struct {
     int x, y;
     int parentX, parentY;
@@ -124,7 +146,7 @@ typedef struct {
 
 
 //------------
-// Состояния игры
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 typedef enum {
     GAME_MENU,
     GAME_PLAYING,
@@ -134,12 +156,12 @@ typedef enum {
 
 GameState gameState = GAME_MENU;
 
-// Игровые параметры
-int playerHP = 5;
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+int playerHP = PLAYER_INITIAL_HP;
 int gameScore = 0;
-int gameTime = 0; // В секундах
+int gameTime = 0; // пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
-// Кнопки меню
+// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 typedef struct {
     float x, y;
     float width, height;
@@ -150,7 +172,7 @@ Button startButton;
 Button exitButton;
 Button okButton;
 
-// Флаги для определения, нажата ли кнопка
+// пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 int mouseX, mouseY;
 bool mouseLeftDown = false;
 //-------------------------------------------------------------------------
@@ -163,9 +185,9 @@ bool mouseLeftDown = false;
 
 
 
-// Сетка и недвижимые объекты
+// пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
-// Функция для установки объекта в сетку
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
 void setGridObject(int x, int y, ObjectType type, int durability, bool passable, bool destructible) {
     if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
         gameGrid[y][x].type = type;
@@ -175,16 +197,16 @@ void setGridObject(int x, int y, ObjectType type, int durability, bool passable,
     }
 }
 
-// Инициализация игрового поля на основе матрицы
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 void initGameGrid() {
-    // Инициализируем всю сетку как пустые ячейки
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     for (int y = 0; y < GRID_HEIGHT; y++) {
         for (int x = 0; x < GRID_WIDTH; x++) {
             setGridObject(x, y, OBJECT_EMPTY, 0, true, false);
         }
     }
 
-    // Разрушаемые стены просто так
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ
     for (int x = 5; x < 15; x++) {
         setGridObject(x, 27, OBJECT_BRICK, 3, false, true);
         setGridObject(x, 28, OBJECT_BRICK, 3, false, true);
@@ -225,7 +247,7 @@ void initGameGrid() {
         setGridObject(x, 11, OBJECT_BRICK, 3, false, true);
     }
 
-    // Неразрушаемые стены 
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 
     for (int y = 0; y < 34; y++) {
         for (int x = 0; x < 34; x++) {
             if (x == 0 || x == 33 || y == 0 || y == 33) {
@@ -234,13 +256,13 @@ void initGameGrid() {
         }
     }
 
-    // База игрока (в центре снизу)
+    // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
     setGridObject(17, 2, OBJECT_BASE, 1, false, true);
     setGridObject(18, 2, OBJECT_BASE, 1, false, true);
     setGridObject(17, 1, OBJECT_BASE, 1, false, true);
     setGridObject(18, 1, OBJECT_BASE, 1, false, true);
 
-    // Кирпичи вокруг базы
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     setGridObject(15, 1, OBJECT_BRICK_BASE, 3, false, true);
     setGridObject(15, 2, OBJECT_BRICK_BASE, 3, false, true);
     setGridObject(15, 3, OBJECT_BRICK_BASE, 3, false, true);
@@ -280,31 +302,31 @@ void initGameGrid() {
 
 
 
-// Блок танка игрока
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void initTank() {
-    playerTank.x = -3.0f;       // Стартовая позиция X
-    playerTank.y = -7.0f;       // Стартовая позиция Y
-    playerTank.direction = 0;  // Смотрит вверх
+    playerTank.x = -3.0f;       // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ X
+    playerTank.y = -7.0f;       // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y
+    playerTank.direction = 0;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     playerTank.isMoving = false;
     playerTank.moveProgress = 0.0f;
-    // Переводим мировые координаты в клеточные
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     playerTank.targetX = (int)((playerTank.x + 8.5f) / 0.5f);
     playerTank.targetY = (int)((playerTank.y + 8.5f) / 0.5f);
 }
 
 bool canMoveTo(int gridX, int gridY) {
-    // Проверяем все 4 клетки под танком (2x2)
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ 4 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (2x2)
     for (int dy = 0; dy < 2; dy++) {
         for (int dx = 0; dx < 2; dx++) {
             int checkX = gridX + dx;
             int checkY = gridY + dy;
 
-            // Проверка выхода за границы
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             if (checkX < 0 || checkX >= GRID_WIDTH || checkY < 0 || checkY >= GRID_HEIGHT)
                 return false;
 
-            // Проверка проходимости клетки
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
             if (!gameGrid[checkY][checkX].passable)
                 return false;
         }
@@ -314,14 +336,14 @@ bool canMoveTo(int gridX, int gridY) {
 
 void updateTank() {
     if (playerTank.isMoving) {
-        playerTank.moveProgress += 0.05f;  // Скорость движения
+        playerTank.moveProgress += PLAYER_MOVE_STEP;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
         if (playerTank.moveProgress >= 1.0f) {
             playerTank.isMoving = false;
             playerTank.moveProgress = 1.0f;
         }
 
-        // Рассчет новой позиции
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         float targetWorldX = -8.5f + playerTank.targetX * 0.5f + 0.5f;
         float targetWorldY = -8.5f + playerTank.targetY * 0.5f + 0.5f;
 
@@ -334,18 +356,18 @@ void drawTank() {
     glPushMatrix();
     glTranslatef(playerTank.x, playerTank.y, 0.0f);
 
-    // Поворот в зависимости от направления
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     switch (playerTank.direction) {
-    case 0: break;  // Вверх
+    case 0: break;  // пїЅпїЅпїЅпїЅпїЅ
     case 1: glRotatef(90.0f, 0, 0, 1); break;
     case 2: glRotatef(180.0f, 0, 0, 1); break;
     case 3: glRotatef(270.0f, 0, 0, 1); break;
     }
 
-    // Основной цвет - песочный
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.76f, 0.70f, 0.50f);
 
-    // Корпус (основной прямоугольник)
+    // пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
     glBegin(GL_QUADS);
     glVertex2f(-0.5f, -0.5f);
     glVertex2f(0.5f, -0.5f);
@@ -353,7 +375,7 @@ void drawTank() {
     glVertex2f(-0.5f, 0.5f);
     glEnd();
 
-    // Пушка
+    // пїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.3f, 0.3f, 0.3f);
     glBegin(GL_QUADS);
     glVertex2f(-0.05f, 0.0f);
@@ -362,16 +384,16 @@ void drawTank() {
     glVertex2f(-0.05f, 0.6f);
     glEnd();
 
-    // Гусеницы
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.4f, 0.4f, 0.4f);
     glBegin(GL_QUADS);
-    // Левая
+    // пїЅпїЅпїЅпїЅпїЅ
     glVertex2f(-0.6f, -0.4f);
     glVertex2f(-0.4f, -0.4f);
     glVertex2f(-0.4f, 0.4f);
     glVertex2f(-0.6f, 0.4f);
 
-    // Правая
+    // пїЅпїЅпїЅпїЅпїЅпїЅ
     glVertex2f(0.4f, -0.4f);
     glVertex2f(0.6f, -0.4f);
     glVertex2f(0.6f, 0.4f);
@@ -390,29 +412,29 @@ void drawTank() {
 
 // BFS
 //--------------------------------------------------------------------------
-// Очередь для BFS
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ BFS
 PathNode pathQueue[1296];
 int queueStart = 0;
 int queueEnd = 0;
 
-// Проверка, является ли точка линией атаки
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 bool isAttackLine(int x, int y) {
     return (y == 2) || (x == 17) || (x == 18);
 }
 
-// Поиск кратчайшего пути до ближайшей линии атаки
+// пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 void findPathToAttackLine(EnemyTank* tank) {
-    // Очищаем предыдущий путь
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     if (tank->path) {
         free(tank->path);
         tank->path = NULL;
     }
 
-    // Текущая позиция в сетке
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
     int startX = (int)((tank->x + 8.5f) / 0.5f);
     int startY = (int)((tank->y + 8.5f) / 0.5f);
 
-    // Целевые точки атаки
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     int targets[3][2] = { {17, 1}, {18, 1}, {startX, 1} };
     PathNode bestTarget = { -1, -1, -1, -1 };
     bool found = false;
@@ -422,14 +444,14 @@ void findPathToAttackLine(EnemyTank* tank) {
         int targetX = targets[t][0];
         int targetY = targets[t][1];
 
-        // Массив посещенных точек
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         bool visited[36][36] = { false };
 
-        // Очередь инициализации
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         queueStart = 0;
         queueEnd = 0;
 
-        // Добавляем стартовую точку
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         pathQueue[queueEnd++] = (PathNode){ startX, startY, -1, -1 };
         visited[startY][startX] = true;
 
@@ -439,14 +461,14 @@ void findPathToAttackLine(EnemyTank* tank) {
         while (queueStart < queueEnd) {
             PathNode current = pathQueue[queueStart++];
 
-            // Проверяем, достигли ли мы цели
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ
             if (current.x == targetX && current.y == targetY) {
                 targetNode = current;
                 pathFound = true;
                 break;
             }
 
-            // Проверяем соседние клетки
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
             int dx[4] = { 0, 0, -1, 1 };
             int dy[4] = { -1, 1, 0, 0 };
 
@@ -454,11 +476,11 @@ void findPathToAttackLine(EnemyTank* tank) {
                 int nx = current.x + dx[i];
                 int ny = current.y + dy[i];
 
-                // Проверяем границы
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 if (nx < 0 || nx >= GRID_WIDTH || ny < 0 || ny >= GRID_HEIGHT)
                     continue;
 
-                // Проверяем, можно ли пройти
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                 if (!visited[ny][nx] && canMoveTo(nx, ny)) {
                     visited[ny][nx] = true;
                     pathQueue[queueEnd++] = (PathNode){ nx, ny, current.x, current.y };
@@ -466,7 +488,7 @@ void findPathToAttackLine(EnemyTank* tank) {
             }
         }
 
-        // Если путь найден, проверяем длину
+        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         if (pathFound) {
             int length = 0;
             PathNode node = targetNode;
@@ -488,7 +510,7 @@ void findPathToAttackLine(EnemyTank* tank) {
         }
     }
 
-    // Если путь найден, сохраняем его
+    // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ
     if (found) {
         int length = shortestPath;
         tank->pathLength = length;
@@ -510,7 +532,7 @@ void findPathToAttackLine(EnemyTank* tank) {
             }
         }
 
-        // Устанавливаем первую цель пути
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         if (tank->pathLength > 0) {
             tank->targetX = tank->path[0];
             tank->targetY = tank->path[1];
@@ -523,15 +545,15 @@ void findPathToAttackLine(EnemyTank* tank) {
 
 
 
-// Обнова времени
+// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void updateGameTime() {
     if (gameState == GAME_PLAYING) {
         int currentTime = glutGet(GLUT_ELAPSED_TIME);
         gameTime = (currentTime - gameStartTime) / 1000;
 
-        // Проверка победы
-        if (gameScore >= 10000) {
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+        if (gameScore >= SCORE_WIN_THRESHOLD) {
             gameState = GAME_WIN;
         }
     }
@@ -552,7 +574,7 @@ void timerCallback(int value) {
 
 
 
-// Блок танков врагов
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void initEnemies() {
     for (int i = 0; i < MAX_ENEMIES; i++) {
@@ -581,7 +603,7 @@ void respawnEnemies() {
             enemies[i].active = true;
             enemies[i].lastShotTime = currentTime;
 
-            // Инициализация параметров движения
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             enemies[i].isMoving = false;
             enemies[i].moveProgress = 0.0f;
             enemies[i].targetX = (int)((enemies[i].x + 8.5f) / 0.5f);
@@ -589,11 +611,11 @@ void respawnEnemies() {
             enemies[i].path = NULL;
             enemies[i].pathStep = 0;
             enemies[i].pathLength = 0;
-            // Случайная задержка между движениями (500-1000 мс)
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (500-1000 пїЅпїЅ)
             enemies[i].moveDelay = 500 + rand() % 500;
             enemies[i].lastMoveTime = currentTime;
 
-            // Находим путь к линии атаки
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
             findPathToAttackLine(&enemies[i]);
 
             spawned++;
@@ -607,12 +629,12 @@ int getDirectionToTarget(int currentX, int currentY, int targetX, int targetY) {
     int dx = targetX - currentX;
     int dy = targetY - currentY;
 
-    // Приоритет движения по оси с наибольшей разницей
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     if (abs(dx) > abs(dy)) {
-        return (dx > 0) ? 3 : 1; // Вправо : Влево
+        return (dx > 0) ? 3 : 1; // пїЅпїЅпїЅпїЅпїЅпїЅ : пїЅпїЅпїЅпїЅпїЅ
     }
     else {
-        return (dy > 0) ? 0 : 2; // Вверх : Вниз
+        return (dy > 0) ? 0 : 2; // пїЅпїЅпїЅпїЅпїЅ : пїЅпїЅпїЅпїЅ
     }
 }
 
@@ -620,18 +642,18 @@ void drawEnemyTank(EnemyTank* tank) {
     glPushMatrix();
     glTranslatef(tank->x, tank->y, 0.0f);
 
-    // Всегда используем актуальное направление из структуры
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     switch (tank->direction) {
-    case 0: break;                   // Вверх
-    case 1: glRotatef(90.0f, 0, 0, 1); break;   // Влево
-    case 2: glRotatef(180.0f, 0, 0, 1); break;  // Вниз
-    case 3: glRotatef(270.0f, 0, 0, 1); break;  // Вправо
+    case 0: break;                   // пїЅпїЅпїЅпїЅпїЅ
+    case 1: glRotatef(90.0f, 0, 0, 1); break;   // пїЅпїЅпїЅпїЅпїЅ
+    case 2: glRotatef(180.0f, 0, 0, 1); break;  // пїЅпїЅпїЅпїЅ
+    case 3: glRotatef(270.0f, 0, 0, 1); break;  // пїЅпїЅпїЅпїЅпїЅпїЅ
     }
 
-    // Основной цвет - бронзовый
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.8f, 0.5f, 0.2f);
 
-    // Корпус
+    // пїЅпїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(-0.5f, -0.5f);
     glVertex2f(0.5f, -0.5f);
@@ -639,7 +661,7 @@ void drawEnemyTank(EnemyTank* tank) {
     glVertex2f(-0.5f, 0.5f);
     glEnd();
 
-    // Пушка
+    // пїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.3f, 0.3f, 0.3f);
     glBegin(GL_QUADS);
     glVertex2f(-0.05f, 0.0f);
@@ -648,15 +670,15 @@ void drawEnemyTank(EnemyTank* tank) {
     glVertex2f(-0.05f, 0.6f);
     glEnd();
 
-    // Гусеницы
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.4f, 0.3f, 0.2f);
     glBegin(GL_QUADS);
-    // Левая
+    // пїЅпїЅпїЅпїЅпїЅ
     glVertex2f(-0.6f, -0.4f);
     glVertex2f(-0.4f, -0.4f);
     glVertex2f(-0.4f, 0.4f);
     glVertex2f(-0.6f, 0.4f);
-    // Правая
+    // пїЅпїЅпїЅпїЅпїЅпїЅ
     glVertex2f(0.4f, -0.4f);
     glVertex2f(0.6f, -0.4f);
     glVertex2f(0.6f, 0.4f);
@@ -678,7 +700,7 @@ void drawEnemies() {
 
 
 
-// Блок работы пули
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void initBullets() {
     for (int i = 0; i < MAX_BULLETS; i++) {
@@ -690,24 +712,24 @@ void initBullets() {
 void createBullet() {
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
 
-    // Проверяем задержку между выстрелами
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     if (currentTime - lastShotTime < SHOT_DELAY) return;
 
-    // Ищем свободный слот для пули
+    // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (!bullets[i].active) {
             bullets[i].x = playerTank.x + (playerTank.direction - 2) % 2 * 0.5f;
             bullets[i].y = playerTank.y + (playerTank.direction - 1) % 2 * 0.5f;
             bullets[i].direction = playerTank.direction;
             bullets[i].active = true;
-            bullets[i].isEnemy = false; // Помечаем как пулю игрока
+            bullets[i].isEnemy = false; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 
-            // Корректируем позицию в зависимости от направления
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             switch (playerTank.direction) {
-            case 0: bullets[i].y += 0.6f; break; // Вверх
-            case 1: bullets[i].x -= 0.6f; break; // Влево
-            case 2: bullets[i].y -= 0.6f; break; // Вниз
-            case 3: bullets[i].x += 0.6f; break; // Вправо
+            case 0: bullets[i].y += 0.6f; break; // пїЅпїЅпїЅпїЅпїЅ
+            case 1: bullets[i].x -= 0.6f; break; // пїЅпїЅпїЅпїЅпїЅ
+            case 2: bullets[i].y -= 0.6f; break; // пїЅпїЅпїЅпїЅ
+            case 3: bullets[i].x += 0.6f; break; // пїЅпїЅпїЅпїЅпїЅпїЅ
             }
 
             lastShotTime = currentTime;
@@ -723,9 +745,9 @@ void createEnemyBullet(int enemyIndex) {
             bullets[i].y = enemies[enemyIndex].y;
             bullets[i].direction = enemies[enemyIndex].direction;
             bullets[i].active = true;
-            bullets[i].isEnemy = true; // Помечаем как вражескую
+            bullets[i].isEnemy = true; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
-            // Корректировка позиции
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             switch (enemies[enemyIndex].direction) {
             case 0: bullets[i].y += 0.6f; break;
             case 1: bullets[i].x += 0.6f; break;
@@ -738,68 +760,68 @@ void createEnemyBullet(int enemyIndex) {
 }
 
 void updateBullets() {
-    const float BULLET_SPEED = 1.0f;
 
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (!bullets[i].active) continue;
 
-        // Проверка попадания в игрока (только для вражеских пуль)
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ)
         if (bullets[i].isEnemy) {
             float distX = fabsf(bullets[i].x - playerTank.x);
             float distY = fabsf(bullets[i].y - playerTank.y);
 
             if (distX < 0.5f && distY < 0.5f) {
                 bullets[i].active = false;
-                // Обработка попадания в игрока
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                 playerHP--;
 
-                // Проверка проигрыша по здоровью
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 if (playerHP <= 0) {
                     gameState = GAME_LOSE;
                 }
             }
         }
-        // Проверка попадания во врагов (только для пуль игрока)
+        // РїРѕРїР°РґР°РЅРёРµ РїСѓР»Рё РїРѕ РІСЂР°РіСѓ (С‚РѕР»СЊРєРѕ РґР»СЏ РїСѓР»Рё РёРіСЂРѕРєР°)
         if (!bullets[i].isEnemy) {
             for (int j = 0; j < MAX_ENEMIES; j++) {
                 if (enemies[j].active) {
-                    // Проверка столкновения с учетом размеров
                     float dx = fabsf(bullets[i].x - enemies[j].x);
                     float dy = fabsf(bullets[i].y - enemies[j].y);
 
-                    // Размер танка: 1.0x1.0, размер пули: 0.3x0.3
                     if (dx < 0.65f && dy < 0.65f) {
                         bullets[i].active = false;
                         enemies[j].active = false;
 
-                        // Начисление 50 очков за врага
-                        gameScore += 50;
+                        // РѕС‡РєРё Р·Р° СѓРЅРёС‡С‚РѕР¶РµРЅРёРµ РІСЂР°РіР°
+                        gameScore += SCORE_ENEMY_KILL;
 
-                        // Уменьшаем время респавна
-                        respawnDelay -= 500;
-                        if (respawnDelay < 1000) respawnDelay = 1000;
+                        // СѓСЃРєРѕСЂСЏРµРј СЂРµСЃРїР°РІРЅ РІСЂР°РіРѕРІ
+                        respawnDelay -= ENEMY_RESPAWN_STEP;
+                        if (respawnDelay < ENEMY_RESPAWN_MIN) {
+                            respawnDelay = ENEMY_RESPAWN_MIN;
+                        }
                         break;
                     }
                 }
             }
         }
 
-        // Двигаем пулю в зависимости от направления
+
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         switch (bullets[i].direction) {
-        case 0: bullets[i].y += BULLET_SPEED * 0.05f; break;
-        case 1: bullets[i].x -= BULLET_SPEED * 0.05f; break;
-        case 2: bullets[i].y -= BULLET_SPEED * 0.05f; break;
-        case 3: bullets[i].x += BULLET_SPEED * 0.05f; break;
+        case 0: bullets[i].y += BULLET_SPEED * PLAYER_MOVE_STEP; break;
+        case 1: bullets[i].x -= BULLET_SPEED * PLAYER_MOVE_STEP; break;
+        case 2: bullets[i].y -= BULLET_SPEED * PLAYER_MOVE_STEP; break;
+        case 3: bullets[i].x += BULLET_SPEED * PLAYER_MOVE_STEP; break;
         }
 
-        // Проверка выхода за границы поля
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         if (bullets[i].x < -9.0f || bullets[i].x > 9.0f ||
             bullets[i].y < -9.0f || bullets[i].y > 9.0f) {
             bullets[i].active = false;
             continue;
         }
 
-        // Проверка столкновений
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         int gridX = (int)((bullets[i].x + 8.5f) / 0.5f);
         int gridY = (int)((bullets[i].y + 8.5f) / 0.5f);
 
@@ -807,22 +829,23 @@ void updateBullets() {
         if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
             GameObject* obj = &gameGrid[gridY][gridX];
 
-            // Уничтожение базы
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
             if (obj->type == OBJECT_BASE) {
                 gameState = GAME_LOSE;
             }
 
             if (!obj->passable) {
-                // Начисляем очки за разрушение кирпича
-                if ((obj->type == OBJECT_BRICK || obj->type == OBJECT_BRICK_BASE) && obj->durability > 0) {
-                    gameScore += 10;
+                // РѕС‡РєРё Р·Р° РєРёСЂРїРёС‡ РЅР°С‡РёСЃР»СЏСЋС‚СЃСЏ С‚РѕР»СЊРєРѕ Р·Р° РїСѓР»Рё РёРіСЂРѕРєР°
+                if (!bullets[i].isEnemy &&
+                    (obj->type == OBJECT_BRICK || obj->type == OBJECT_BRICK_BASE) &&
+                    obj->durability > 0) {
+                    gameScore += SCORE_BRICK_HIT;
                 }
 
-                // Для разрушаемых объектов уменьшаем прочность
+                // СЂР°Р·СЂСѓС€РµРЅРёРµ СЂР°Р·СЂСѓС€Р°РµРјС‹С… РѕР±СЉРµРєС‚РѕРІ (Рё РѕС‚ РёРіСЂРѕРєР°, Рё РѕС‚ РІСЂР°РіР°)
                 if (obj->destructible && obj->durability > 0) {
                     obj->durability--;
 
-                    // Если прочность закончилась - удаляем объект
                     if (obj->durability <= 0) {
                         obj->type = OBJECT_EMPTY;
                         obj->passable = true;
@@ -831,12 +854,13 @@ void updateBullets() {
 
                 bullets[i].active = false;
             }
+
         }
     }
 }
 
 void drawBullets() {
-    glColor3f(0.3f, 0.3f, 0.3f); // Серый цвет
+    glColor3f(0.3f, 0.3f, 0.3f); // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (!bullets[i].active) continue;
@@ -844,9 +868,9 @@ void drawBullets() {
         glPushMatrix();
         glTranslatef(bullets[i].x, bullets[i].y, 0.0f);
 
-        // Ориентация пули в зависимости от направления
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         switch (bullets[i].direction) {
-        case 0: case 2: // Вертикально
+        case 0: case 2: // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             glBegin(GL_QUADS);
             glVertex2f(-0.1f, -0.15f);
             glVertex2f(0.1f, -0.15f);
@@ -855,7 +879,7 @@ void drawBullets() {
             glEnd();
             break;
 
-        case 1: case 3: // Горизонтально
+        case 1: case 3: // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             glBegin(GL_QUADS);
             glVertex2f(-0.15f, -0.1f);
             glVertex2f(0.15f, -0.1f);
@@ -877,7 +901,7 @@ void drawBullets() {
 
 
 
-// Блок логики врагов
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void updateEnemies() {
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
@@ -885,38 +909,38 @@ void updateEnemies() {
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!enemies[i].active) continue;
 
-        // Текущая позиция в сетке
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
         int currentGridX = (int)((enemies[i].x + 8.5f) / 0.5f);
         int currentGridY = (int)((enemies[i].y + 8.5f) / 0.5f);
 
-        // Определяем состояние (на линии атаки или нет)
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ)
         enemies[i].state = isAttackLine(currentGridX, currentGridY) ? 1 : 0;
 
-        // Стрельба врагов (раз в 2 секунды)
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅ 2 пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
         if (currentTime - enemies[i].lastShotTime > 2000) {
             createEnemyBullet(i);
             enemies[i].lastShotTime = currentTime;
         }
 
-        // Если танк движется
+        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         if (enemies[i].isMoving) {
             enemies[i].moveProgress += 0.03f;
 
             if (enemies[i].moveProgress >= 1.0f) {
-                // Завершение движения
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 enemies[i].isMoving = false;
                 enemies[i].moveProgress = 1.0f;
                 enemies[i].lastMoveTime = currentTime;
 
-                // Финализируем позицию
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 enemies[i].x = -8.5f + enemies[i].targetX * 0.5f + 0.5f;
                 enemies[i].y = -8.5f + enemies[i].targetY * 0.5f + 0.5f;
 
-                // Обновляем текущую позицию в сетке
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
                 currentGridX = enemies[i].targetX;
                 currentGridY = enemies[i].targetY;
 
-                // Если достигли точки пути, переходим к следующей
+                // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 if (enemies[i].path != NULL && enemies[i].pathStep < enemies[i].pathLength - 1) {
                     enemies[i].pathStep++;
                     enemies[i].targetX = enemies[i].path[enemies[i].pathStep * 2];
@@ -924,7 +948,7 @@ void updateEnemies() {
                 }
             }
             else {
-                // Плавное перемещение к цели
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ
                 float targetWorldX = -8.5f + enemies[i].targetX * 0.5f + 0.5f;
                 float targetWorldY = -8.5f + enemies[i].targetY * 0.5f + 0.5f;
 
@@ -932,44 +956,44 @@ void updateEnemies() {
                 enemies[i].y += (targetWorldY - enemies[i].y) * 0.1f;
             }
         }
-        // Если не движется и пришло время двигаться
+        // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         else if (currentTime - enemies[i].lastMoveTime > enemies[i].moveDelay) {
             int newDirection = -1;
             int nextGridX = currentGridX;
             int nextGridY = currentGridY;
 
-            // Определяем следующее движение
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             if (enemies[i].path != NULL && enemies[i].pathStep < enemies[i].pathLength) {
                 nextGridX = enemies[i].path[enemies[i].pathStep * 2];
                 nextGridY = enemies[i].path[enemies[i].pathStep * 2 + 1];
 
-                // Вычисляем правильное направление
-                if (nextGridX > currentGridX) newDirection = 3; // Вправо
-                else if (nextGridX < currentGridX) newDirection = 1; // Влево
-                else if (nextGridY > currentGridY) newDirection = 0; // Вверх
-                else newDirection = 2; // Вниз
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                if (nextGridX > currentGridX) newDirection = 3; // пїЅпїЅпїЅпїЅпїЅпїЅ
+                else if (nextGridX < currentGridX) newDirection = 1; // пїЅпїЅпїЅпїЅпїЅ
+                else if (nextGridY > currentGridY) newDirection = 0; // пїЅпїЅпїЅпїЅпїЅ
+                else newDirection = 2; // пїЅпїЅпїЅпїЅ
             }
-            // Если на линии атаки (состояние 1)
+            // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1)
             else if (enemies[i].state == 1) {
                 if (currentGridX == 17 || currentGridX == 18) {
-                    // На вертикальной линии - двигаемся вниз
+                    // пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
                     newDirection = 2;
                     nextGridY = currentGridY - 2;
                 }
                 else if (currentGridY == 1) {
-                    // На горизонтальной линии - двигаемся к центру
+                    // пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                     if (currentGridX < 17) {
-                        newDirection = 3; // Вправо
+                        newDirection = 3; // пїЅпїЅпїЅпїЅпїЅпїЅ
                         nextGridX = currentGridX + 2;
                     }
                     else {
-                        newDirection = 1; // Влево
+                        newDirection = 1; // пїЅпїЅпїЅпїЅпїЅ
                         nextGridX = currentGridX - 2;
                     }
                 }
             }
 
-            // Если направление определено и движение возможно
+            // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             if (newDirection != -1 && canMoveTo(nextGridX, nextGridY)) {
                 enemies[i].direction = newDirection;
                 enemies[i].targetX = nextGridX;
@@ -977,20 +1001,20 @@ void updateEnemies() {
                 enemies[i].isMoving = true;
                 enemies[i].moveProgress = 0.0f;
             }
-            // Если не можем двигаться, ждем
+            // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ
             else {
                 enemies[i].lastMoveTime = currentTime;
             }
         }
 
-        // Корректировка направления для танков на линии атаки
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         if (enemies[i].state == 1) {
             if (currentGridY == 2) {
-                // На горизонтальной линии - поворачиваем к базе
-                enemies[i].direction = (currentGridX < 17) ? 3 : 1; // Вправо/Влево
+                // пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ
+                enemies[i].direction = (currentGridX < 17) ? 3 : 1; // пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ
             }
             else if (currentGridX == 17 || currentGridX == 18) {
-                // На вертикальной линии - поворачиваем вниз
+                // пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
                 enemies[i].direction = 2;
             }
         }
@@ -1005,38 +1029,38 @@ void updateEnemies() {
 
 
 
-// Инит
+// пїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void initGame() {
-    // Инициализация игровой сетки
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     initGameGrid();
 
-    // Инициализация танка игрока
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     initTank();
 
-    // Инициализация пуль
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     initBullets();
 
-    // Инициализация врагов
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     initEnemies();
 
-    // Настраиваем ортографическую проекцию
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-FIELD_WIDTH / 2, FIELD_WIDTH / 2 + PANEL_WIDTH,
         -FIELD_HEIGHT / 2, FIELD_HEIGHT / 2,
         -1.0, 1.0);
 
-    // Переключаемся на модель-вид
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅ
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Инициализация кнопок меню
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     startButton = (Button){ 0.0f, 0.0f, 6.0f, 1.5f, "Start Game" };
     exitButton = (Button){ 0.0f, -2.0f, 6.0f, 1.5f, "Exit" };
     okButton = (Button){ -3.0f, -3.0f, 6.0f, 1.5f, "Ok" };
 
-    // Сброс игровых параметров
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     playerHP = 5;
     gameScore = 0;
     gameTime = 0;
@@ -1044,7 +1068,7 @@ void initGame() {
 }
 
 void init() {
-    // Устанавливаем цвет очистки
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     initGame();
 }
@@ -1061,11 +1085,11 @@ void init() {
 
 
 
-// Блок отрисовки
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void drawField() {
-    // Рисуем игровое поле (зеленый квадрат)
-    glColor3f(0.2f, 0.4f, 0.1f);  // Зеленый цвет поля
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+    glColor3f(0.2f, 0.4f, 0.1f);  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
     glVertex2f(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
@@ -1075,10 +1099,10 @@ void drawField() {
 }
 
 void drawWalls() {
-    // Устанавливаем оранжевый цвет для стен
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     glColor3f(0.9f, 0.5f, 0.1f);
 
-    // Левая стена
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
     glVertex2f(-FIELD_WIDTH / 2 + WALL_THICKNESS, -FIELD_HEIGHT / 2);
@@ -1086,7 +1110,7 @@ void drawWalls() {
     glVertex2f(-FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
     glEnd();
 
-    // Правая стена
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(FIELD_WIDTH / 2 - WALL_THICKNESS, -FIELD_HEIGHT / 2);
     glVertex2f(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
@@ -1094,7 +1118,7 @@ void drawWalls() {
     glVertex2f(FIELD_WIDTH / 2 - WALL_THICKNESS, FIELD_HEIGHT / 2);
     glEnd();
 
-    // Верхняя стена
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(-FIELD_WIDTH / 2, FIELD_HEIGHT / 2 - WALL_THICKNESS);
     glVertex2f(FIELD_WIDTH / 2, FIELD_HEIGHT / 2 - WALL_THICKNESS);
@@ -1102,7 +1126,7 @@ void drawWalls() {
     glVertex2f(-FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
     glEnd();
 
-    // Нижняя стена
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
     glVertex2f(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2);
@@ -1112,23 +1136,23 @@ void drawWalls() {
 }
 
 void drawGameObjects() {
-    // Рассчитываем начальные координаты (левый нижний угол сетки)
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
     float startX = -FIELD_WIDTH / 2 + WALL_THICKNESS;
     float startY = -FIELD_HEIGHT / 2 + WALL_THICKNESS;
 
-    // Проходим по всем ячейкам сетки
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     for (int y = 0; y < GRID_HEIGHT; y++) {
         for (int x = 0; x < GRID_WIDTH; x++) {
             float posX = startX + x * CELL_SIZE;
             float posY = startY + y * CELL_SIZE;
 
             switch (gameGrid[y][x].type) {
-            case OBJECT_BRICK: // Разрушаемая стена (кирпич)
-                // Определяем цвет по прочности
+            case OBJECT_BRICK: // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ)
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 switch (gameGrid[y][x].durability) {
-                case 3: glColor3f(0.8f, 0.1f, 0.1f); break; // Темно-красный
-                case 2: glColor3f(0.9f, 0.3f, 0.3f); break; // Средне-красный
-                case 1: glColor3f(1.0f, 0.5f, 0.5f); break; // Светло-красный
+                case 3: glColor3f(0.8f, 0.1f, 0.1f); break; // пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                case 2: glColor3f(0.9f, 0.3f, 0.3f); break; // пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                case 1: glColor3f(1.0f, 0.5f, 0.5f); break; // пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 }
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
@@ -1138,12 +1162,12 @@ void drawGameObjects() {
                 glEnd();
                 break;
 
-            case OBJECT_BRICK_BASE: // Разрушаемая стена базы (кирпич)
-                // Определяем цвет по прочности
+            case OBJECT_BRICK_BASE: // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ)
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 switch (gameGrid[y][x].durability) {
-                case 3: glColor3f(0.8f, 0.1f, 0.1f); break; // Темно-красный
-                case 2: glColor3f(0.9f, 0.3f, 0.3f); break; // Средне-красный
-                case 1: glColor3f(1.0f, 0.5f, 0.5f); break; // Светло-красный
+                case 3: glColor3f(0.8f, 0.1f, 0.1f); break; // пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                case 2: glColor3f(0.9f, 0.3f, 0.3f); break; // пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                case 1: glColor3f(1.0f, 0.5f, 0.5f); break; // пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 }
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
@@ -1153,8 +1177,8 @@ void drawGameObjects() {
                 glEnd();
                 break;
 
-            case OBJECT_STEEL: // Неразрушаемая стена (сталь)
-                glColor3f(0.5f, 0.5f, 0.5f); // Серый
+            case OBJECT_STEEL: // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ)
+                glColor3f(0.5f, 0.5f, 0.5f); // пїЅпїЅпїЅпїЅпїЅ
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
                 glVertex2f(posX + CELL_SIZE, posY);
@@ -1163,8 +1187,8 @@ void drawGameObjects() {
                 glEnd();
                 break;
 
-            case OBJECT_BASE: // База игрока
-                glColor3f(0.9f, 0.9f, 0.2f); // Желтый
+            case OBJECT_BASE: // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+                glColor3f(0.9f, 0.9f, 0.2f); // пїЅпїЅпїЅпїЅпїЅпїЅ
                 glBegin(GL_QUADS);
                 glVertex2f(posX, posY);
                 glVertex2f(posX + CELL_SIZE, posY);
@@ -1178,18 +1202,18 @@ void drawGameObjects() {
 }
 
 void drawText(float x, float y, const char* text) {
-    glColor3f(1.0f, 1.0f, 1.0f); // Белый цвет текста
+    glColor3f(1.0f, 1.0f, 1.0f); // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     glRasterPos2f(x, y);
 
-    // Используем шрифт с поддержкой символов
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     for (const char* c = text; *c != '\0'; c++) {
         glutBitmapCharacter(GLUT_BITMAP_9_BY_15, *c);
     }
 }
 
 void drawButton(Button button) {
-    // Рисуем прямоугольник кнопки
-    glColor3f(0.3f, 0.2f, 0.1f); // Оранжевый
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    glColor3f(0.3f, 0.2f, 0.1f); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(button.x, button.y);
     glVertex2f(button.x + button.width, button.y);
@@ -1197,8 +1221,8 @@ void drawButton(Button button) {
     glVertex2f(button.x, button.y + button.height);
     glEnd();
 
-    // Рамка кнопки
-    glColor3f(0.7f, 0.3f, 0.1f); // Темно-оранжевый
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    glColor3f(0.7f, 0.3f, 0.1f); // пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glLineWidth(2.0f);
     glBegin(GL_LINE_LOOP);
     glVertex2f(button.x, button.y);
@@ -1208,7 +1232,7 @@ void drawButton(Button button) {
     glEnd();
     glLineWidth(1.0f);
 
-    // Центрирование текста
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     int textWidth = 0;
     for (const char* c = button.text; *c != '\0'; c++) {
         textWidth += glutBitmapWidth(GLUT_BITMAP_9_BY_15, *c);
@@ -1221,13 +1245,13 @@ void drawButton(Button button) {
 }
 
 void drawInfoPanel() {
-    // Рисуем панель
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     float panelLeft = FIELD_WIDTH / 2;
     float panelRight = panelLeft + PANEL_WIDTH;
     float panelBottom = -PANEL_HEIGHT / 2;
     float panelTop = PANEL_HEIGHT / 2;
 
-    glColor3f(0.9f, 0.5f, 0.1f); // Оранжевый
+    glColor3f(0.9f, 0.5f, 0.1f); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glBegin(GL_QUADS);
     glVertex2f(panelLeft, panelBottom);
     glVertex2f(panelRight, panelBottom);
@@ -1235,43 +1259,43 @@ void drawInfoPanel() {
     glVertex2f(panelLeft, panelTop);
     glEnd();
 
-    // Рисуем информацию
-    glColor3f(0.0f, 0.0f, 0.0f); // Черный
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    glColor3f(0.0f, 0.0f, 0.0f); // пїЅпїЅпїЅпїЅпїЅпїЅ
 
-    // Здоровье игрока
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     char hpText[20];
     snprintf(hpText, sizeof(hpText), "HP: %d", playerHP);
     drawText(panelLeft + 0.5f, panelTop - 1.0f, hpText);
 
-    // Время игры
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     int minutes = gameTime / 60;
     int seconds = gameTime % 60;
     char timeText[20];
     snprintf(timeText, sizeof(timeText), "Time: %02d:%02d", minutes, seconds);
     drawText(panelLeft + 0.5f, panelTop - 2.5f, timeText);
 
-    // Очки
+    // пїЅпїЅпїЅпїЅ
     char scoreText[20];
     snprintf(scoreText, sizeof(scoreText), "Score: %d", gameScore);
     drawText(panelLeft + 0.5f, panelTop - 4.0f, scoreText);
 }
 
 void drawMenu() {
-    // Очищаем экран оранжевым цветом
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     glClearColor(0.9f, 0.5f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Рисуем заголовок
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glColor3f(0.0f, 0.0f, 0.0f);
     drawText(-4.0f, 4.0f, "BATTLE GYM");
 
-    // Рисуем кнопки
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     drawButton(startButton);
     drawButton(exitButton);
 }
 
 void drawWinScreen() {
-    // Полупрозрачный черный фон
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ
     glColor4f(0.0f, 0.0f, 0.0f, 0.7f);
     glBegin(GL_QUADS);
     glVertex2f(-10.0f, -10.0f);
@@ -1280,21 +1304,21 @@ void drawWinScreen() {
     glVertex2f(-10.0f, 10.0f);
     glEnd();
 
-    // Текст победы
-    glColor3f(0.0f, 1.0f, 0.0f); // Зеленый
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    glColor3f(0.0f, 1.0f, 0.0f); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     drawText(-4.0f, 2.0f, "You win!");
 
-    // Очки
+    // пїЅпїЅпїЅпїЅ
     char scoreText[30];
     sprintf(scoreText, "Your score: %d", gameScore);
     drawText(-4.0f, 0.0f, scoreText);
 
-    // Кнопка OK
+    // пїЅпїЅпїЅпїЅпїЅпїЅ OK
     drawButton(okButton);
 }
 
 void drawLoseScreen() {
-    // Полупрозрачный черный фон
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ
     glColor4f(0.0f, 0.0f, 0.0f, 0.7f);
     glBegin(GL_QUADS);
     glVertex2f(-10.0f, -10.0f);
@@ -1303,11 +1327,11 @@ void drawLoseScreen() {
     glVertex2f(-10.0f, 10.0f);
     glEnd();
 
-    // Текст проигрыша
-    glColor3f(1.0f, 0.0f, 0.0f); // Красный
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    glColor3f(1.0f, 0.0f, 0.0f); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     drawText(-3.0f, 2.0f, "You loooose!");
 
-    // Причина проигрыша
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     if (playerHP <= 0) {
         drawText(-3.0f, 0.5f, "You died");
     }
@@ -1315,12 +1339,12 @@ void drawLoseScreen() {
         drawText(-3.0f, 0.5f, "Base was destroyed");
     }
 
-    // Очки
+    // пїЅпїЅпїЅпїЅ
     char scoreText[30];
     sprintf(scoreText, "Your score: %d", gameScore);
     drawText(-3.0f, -1.0f, scoreText);
 
-    // Кнопка OK
+    // пїЅпїЅпїЅпїЅпїЅпїЅ OK
     drawButton(okButton);
 }
 //--------------------------------------------------------------------------
@@ -1332,26 +1356,26 @@ void drawLoseScreen() {
 
 
 
-// Чтоб картинка была
+// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void display() {
-    // Очищаем буфер цвета
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // В зависимости от состояния игры рисуем разные экраны
+    // пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     switch (gameState) {
     case GAME_MENU:
         drawMenu();
         break;
 
     case GAME_PLAYING:
-        // Рисуем игровое поле
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         drawField();
         drawWalls();
         drawGameObjects();
         drawInfoPanel();
 
-        // Отрисовка игровых объектов
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         updateTank();
         drawTank();
 
@@ -1364,41 +1388,41 @@ void display() {
         break;
 
     case GAME_WIN:
-        // Рисуем игровое поле на заднем плане
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         drawField();
         drawWalls();
         drawGameObjects();
         drawInfoPanel();
 
-        // Отрисовка игровых объектов
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         drawTank();
         drawEnemies();
         drawBullets();
 
-        // Рисуем экран победы поверх
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         drawWinScreen();
         break;
 
     case GAME_LOSE:
-        // Рисуем игровое поле на заднем плане
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         drawField();
         drawWalls();
         drawGameObjects();
         drawInfoPanel();
 
-        // Отрисовка игровых объектов
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         drawTank();
         drawEnemies();
         drawBullets();
 
-        // Рисуем экран проигрыша поверх
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         drawLoseScreen();
         break;
     }
 
-    // Обмен буферов
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glutSwapBuffers();
-    glutPostRedisplay(); // Непрерывная перерисовка
+    glutPostRedisplay(); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 }
 
 void reshape(int width, int height) {
@@ -1415,10 +1439,10 @@ void reshape(int width, int height) {
 
 
 
-// Всё, что касается клавы и мыши
+// пїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 void mouse(int button, int state, int x, int y) {
-    // Преобразование координат мыши в мировые координаты
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     mouseX = x;
     mouseY = y;
 
@@ -1426,7 +1450,7 @@ void mouse(int button, int state, int x, int y) {
         mouseLeftDown = (state == GLUT_DOWN);
 
         if (mouseLeftDown) {
-            // Преобразуем координаты экрана в мировые
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             GLint viewport[4];
             GLdouble modelview[16], projection[16];
             GLfloat winX, winY, winZ;
@@ -1445,21 +1469,21 @@ void mouse(int button, int state, int x, int y) {
             float worldX = (float)posX;
             float worldY = (float)posY;
 
-            // Проверка нажатия на кнопки
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
             if (gameState == GAME_MENU) {
-                // Кнопка "Начать игру"
+                // пїЅпїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ"
                 if (worldX >= startButton.x && worldX <= startButton.x + startButton.width &&
                     worldY >= startButton.y && worldY <= startButton.y + startButton.height) {
                     gameStartTime = glutGet(GLUT_ELAPSED_TIME);
                     gameState = GAME_PLAYING;
                 }
-                // Кнопка "Выход"
+                // пїЅпїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅ"
                 else if (worldX >= exitButton.x && worldX <= exitButton.x + exitButton.width &&
                     worldY >= exitButton.y && worldY <= exitButton.y + exitButton.height) {
                     exit(0);
                 }
             }
-            // Кнопка "OK" на экранах окончания игры
+            // пїЅпїЅпїЅпїЅпїЅпїЅ "OK" пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
             else if (gameState == GAME_WIN || gameState == GAME_LOSE) {
                 if (worldX >= okButton.x && worldX <= okButton.x + okButton.width &&
                     worldY >= okButton.y && worldY <= okButton.y + okButton.height) {
@@ -1474,9 +1498,9 @@ void keyboard(unsigned char key, int x, int y) {
     if (gameState == GAME_PLAYING) {
         if (key == 27) { // ESC
             gameState = GAME_MENU;
-            initGame(); // Сброс игры
+            initGame(); // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         }
-        if (key == ' ') { // Пробел
+        if (key == ' ') { // пїЅпїЅпїЅпїЅпїЅпїЅ
             createBullet();
         }
     }
@@ -1493,20 +1517,20 @@ void specialKeys(int key, int x, int y) {
     }
 
     if (newDirection != -1 && !playerTank.isMoving) {
-        // Если нужно повернуться
+        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         if (playerTank.direction != newDirection) {
             playerTank.direction = newDirection;
         }
-        // Если можно двигаться
+        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         else {
             int nextX = playerTank.targetX;
             int nextY = playerTank.targetY;
 
             switch (newDirection) {
-            case 0: nextY += 2; break; // Вверх
-            case 1: nextX -= 2; break; // Влево
-            case 2: nextY -= 2; break; // Вниз
-            case 3: nextX += 2; break; // Вправо
+            case 0: nextY += 2; break; // пїЅпїЅпїЅпїЅпїЅ
+            case 1: nextX -= 2; break; // пїЅпїЅпїЅпїЅпїЅ
+            case 2: nextY -= 2; break; // пїЅпїЅпїЅпїЅ
+            case 3: nextX += 2; break; // пїЅпїЅпїЅпїЅпїЅпїЅ
             }
 
             if (canMoveTo(nextX, nextY)) {
@@ -1528,7 +1552,7 @@ void specialKeys(int key, int x, int y) {
 
 
 
-// Мэйн
+// пїЅпїЅпїЅпїЅ
 //--------------------------------------------------------------------------
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
@@ -1544,7 +1568,7 @@ int main(int argc, char** argv) {
     glutSpecialFunc(specialKeys);
     glutMouseFunc(mouse);
 
-    // Таймер для обновления игрового времени
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     glutTimerFunc(1000, timerCallback, 0);
 
     init();
