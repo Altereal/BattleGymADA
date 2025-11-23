@@ -94,6 +94,9 @@ int distToPlayer[GRID_HEIGHT][GRID_WIDTH];
 int lastPlayerGridX = -1;
 int lastPlayerGridY = -1;
 
+bool distToBaseDirty = true;      // Флаг: нужно ли пересчитать карту до базы
+
+GLuint fieldWallsList = 0;        // Display-list для поля и стен
 
 
 //------------
@@ -295,6 +298,9 @@ void initGameGrid() {
     setGridObject(20, 2, OBJECT_BRICK_BASE, 3, false, true);
     setGridObject(20, 3, OBJECT_BRICK_BASE, 3, false, true);
     setGridObject(20, 4, OBJECT_BRICK_BASE, 3, false, true);
+
+    // После изменения карты помечаем поле расстояний до базы как устаревшее
+    distToBaseDirty = true;
 }
 //--------------------------------------------------------------------------
 
@@ -603,8 +609,8 @@ void respawnEnemies() {
             enemies[i].moveDelay = 500 + rand() % 500;
             enemies[i].lastMoveTime = currentTime;
 
-            // 50% шанс, что враг будет снайпить нас в полёте
-            if (rand() % 2 == 0) {
+            // 25% шанс, что враг будет снайпить нас в полёте
+            if (rand() % 4 == 0) {
                 enemies[i].type = ENEMY_HUNTER;
             }
             else {
@@ -849,6 +855,9 @@ void updateBullets() {
                     if (obj->durability <= 0) {
                         obj->type = OBJECT_EMPTY;
                         obj->passable = true;
+
+                        // Карта пути до базы больше не актуальна
+                        distToBaseDirty = true;
                     }
                 }
 
@@ -902,9 +911,21 @@ void drawBullets() {
 void updateEnemies() {
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
 
-    // Строим карты расстояний: к базе и к игроку
-    buildDistanceFieldToBase();
-    buildDistanceFieldToPlayer();
+    //карту расстояний до базы пересчитываем только при изменении карты
+    if (distToBaseDirty) {
+        buildDistanceFieldToBase();
+        distToBaseDirty = false;
+    }
+
+    //карту расстояний до игрока пересчитываем только при смене клетки игрока
+    int playerGridX = (int)roundf((playerTank.x + 8.0f) / CELL_SIZE);
+    int playerGridY = (int)roundf((playerTank.y + 8.0f) / CELL_SIZE);
+
+    if (playerGridX != lastPlayerGridX || playerGridY != lastPlayerGridY) {
+        buildDistanceFieldToPlayer();
+        lastPlayerGridX = playerGridX;
+        lastPlayerGridY = playerGridY;
+    }
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         EnemyTank* e = &enemies[i];
@@ -1059,6 +1080,9 @@ void updateEnemies() {
 
 
 
+// Предварительные объявления функций отрисовки поля 
+void drawField(void);
+void drawWalls(void);
 
 
 // Инит
@@ -1076,6 +1100,7 @@ void initGame() {
     // Инициализация врагов
     initEnemies();
 
+
     // Инициализация полей расстояний для врагов
     lastPlayerGridX = -1;
     lastPlayerGridY = -1;
@@ -1091,6 +1116,16 @@ void initGame() {
     // Переключаемся на модель-вид
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+
+    // Пересобираем display-list для статического поля и стен
+    if (fieldWallsList != 0) {
+        glDeleteLists(fieldWallsList, 1);
+    }
+    fieldWallsList = glGenLists(1);
+    glNewList(fieldWallsList, GL_COMPILE);
+    drawField();
+    drawWalls();
+    glEndList();
 
     // Инициализация кнопок меню
     startButton = (Button){ 0.0f, 0.0f, 6.0f, 1.5f, "Start Game", -2.0f, 0.0f };
@@ -1178,6 +1213,29 @@ void drawWalls() {
     glEnd();
 }
 
+// Общая функция для отрисовки кирпичной клетки по прочности
+void drawBrickCell(float posX, float posY, int durability) {
+    switch (durability) {
+    case 3:
+        glColor3f(0.80f, 0.44f, 0.44f); // основа
+        break;
+    case 2:
+        glColor3f(0.88f, 0.56f, 0.56f); // средне
+        break;
+    case 1:
+    default:
+        glColor3f(0.96f, 0.68f, 0.68f); // почти всё
+        break;
+    }
+
+    glBegin(GL_QUADS);
+    glVertex2f(posX, posY);
+    glVertex2f(posX + CELL_SIZE, posY);
+    glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
+    glVertex2f(posX, posY + CELL_SIZE);
+    glEnd();
+}
+
 void drawGameObjects() {
     // Рассчитываем начальные координаты (левый нижний угол сетки)
     float startX = -FIELD_WIDTH / 2 + WALL_THICKNESS;
@@ -1190,45 +1248,20 @@ void drawGameObjects() {
             float posY = startY + y * CELL_SIZE;
 
             switch (gameGrid[y][x].type) {
-            case OBJECT_BRICK: // Разрушаемая стена (кирпич)
-                // Определяем цвет по прочности
-                switch (gameGrid[y][x].durability) {
-                case 3: glColor3f(0.80f, 0.44f, 0.44f); break; // основа
-                case 2: glColor3f(0.88f, 0.56f, 0.56f); break; // средне
-                case 1: glColor3f(0.96f, 0.68f, 0.68f); break; // почти всё
-                }
-                glBegin(GL_QUADS);
-                glVertex2f(posX, posY);
-                glVertex2f(posX + CELL_SIZE, posY);
-                glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
-                glVertex2f(posX, posY + CELL_SIZE);
-                glEnd();
-                break;
-
-            case OBJECT_BRICK_BASE: // Разрушаемая стена базы (кирпич)
-                // Определяем цвет по прочности
-                switch (gameGrid[y][x].durability) {
-                case 3: glColor3f(0.80f, 0.44f, 0.44f); break; // основа
-                case 2: glColor3f(0.88f, 0.56f, 0.56f); break; // средне
-                case 1: glColor3f(0.96f, 0.68f, 0.68f); break; // почти всё
-                }
-                glBegin(GL_QUADS);
-                glVertex2f(posX, posY);
-                glVertex2f(posX + CELL_SIZE, posY);
-                glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
-                glVertex2f(posX, posY + CELL_SIZE);
-                glEnd();
-                break;
-
-            case OBJECT_STEEL: // Неразрушаемая стена (сталь)
-                glColor3f(0.69f, 0.77f, 0.87f); // Цвет танка игрока (#B0C4DE)
-                glBegin(GL_QUADS);
-                glVertex2f(posX, posY);
-                glVertex2f(posX + CELL_SIZE, posY);
-                glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
-                glVertex2f(posX, posY + CELL_SIZE);
-                glEnd();
-                break;
+                case OBJECT_BRICK:          // Разрушаемая стена (кирпич)
+                case OBJECT_BRICK_BASE:    // Разрушаемая стена базы (кирпич)
+                    drawBrickCell(posX, posY, gameGrid[y][x].durability);
+                    break;
+                
+                case OBJECT_STEEL: // Неразрушаемая стена (сталь)
+                    glColor3f(0.69f, 0.77f, 0.87f); // Цвет танка игрока (#B0C4DE)
+                    glBegin(GL_QUADS);
+                    glVertex2f(posX, posY);
+                    glVertex2f(posX + CELL_SIZE, posY);
+                    glVertex2f(posX + CELL_SIZE, posY + CELL_SIZE);
+                    glVertex2f(posX, posY + CELL_SIZE);
+                    glEnd();
+                    break;
 
             case OBJECT_BASE: // База игрока
                 glColor3f(0.80f, 0.67f, 0.49f); // #CDAA7D — бронзово-песочный
@@ -1433,44 +1466,63 @@ void display() {
         break;
 
     case GAME_PLAYING:
-        // Рисуем игровое поле
-        drawField();
-        drawWalls();
+        // Рисуем игровое поле 
+        if (fieldWallsList != 0) {
+            glCallList(fieldWallsList);
+        }
+        else {
+            drawField();
+            drawWalls();
+        }
         drawGameObjects();
         drawInfoPanel();
 
         // Отрисовка игровых объектов
         updateTank();
         drawTank();
-
         respawnEnemies();
         updateEnemies();
         drawEnemies();
-
         updateBullets();
         drawBullets();
         break;
 
+
     case GAME_WIN:
         // Рисуем игровое поле на заднем плане
-        drawField();
-        drawWalls();
+        if (fieldWallsList != 0) {
+            glCallList(fieldWallsList);
+        }
+        else {
+            drawField();
+            drawWalls();
+        }
         drawGameObjects();
         drawInfoPanel();
 
         // Отрисовка игровых объектов
+        updateTank();
         drawTank();
+        respawnEnemies();
+        updateEnemies();
         drawEnemies();
+        updateBullets();
         drawBullets();
 
         // Рисуем экран победы поверх
         drawWinScreen();
         break;
 
+
     case GAME_LOSE:
-        // Рисуем игровое поле на заднем плане
-        drawField();
-        drawWalls();
+        // Рисуем игровое поле на заднем плане 
+        if (fieldWallsList != 0) {
+            glCallList(fieldWallsList);
+        }
+        else {
+            drawField();
+            drawWalls();
+        }
         drawGameObjects();
         drawInfoPanel();
 
@@ -1484,12 +1536,14 @@ void display() {
         break;
     }
 
-    // Обмен буферов
-    glutSwapBuffers();
-    glutPostRedisplay(); // Непрерывная перерисовка
+
+        // Обмен буферов
+        glutSwapBuffers();
+        glutPostRedisplay(); // Непрерывная перерисовка
+    
 }
 
-void reshape(int width, int height) {
+void reshape (int width, int height) {
     glViewport(0, 0, width, height);
 }
 //--------------------------------------------------------------------------
